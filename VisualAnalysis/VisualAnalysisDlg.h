@@ -4,9 +4,10 @@
 
 #pragma once
 
-#include "cv.h"
-#include "highgui.h"
+#include <cv.h>
+#include <highgui.h>
 #include "src\CvvImage.h"
+#include "src\ObjectDetection.h"
 
 // CVisualAnalysisDlg ¶Ô»°¿ò
 class CVisualAnalysisDlg : public CDialogEx
@@ -37,6 +38,8 @@ public:
 	// Draw image to the HDC of a picture control
 	void DrawImgtoHDC(IplImage * img, UINT ID);
 private:
-	// A pointer to an image
-	IplImage* m_pImg;
+	IplImage* m_pImg;	// A pointer to an image
+	CObjectDetection m_od;//
+public:
+	afx_msg void OnBnClickedBtnPeddetection();
 };

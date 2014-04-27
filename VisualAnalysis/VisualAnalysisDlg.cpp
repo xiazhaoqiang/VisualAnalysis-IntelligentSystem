@@ -55,6 +55,8 @@ CVisualAnalysisDlg::CVisualAnalysisDlg(CWnd* pParent /*=NULL*/)
 	, m_pImg(NULL)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
+	// Initialize the class variables
+	m_pImg = NULL;
 }
 
 void CVisualAnalysisDlg::DoDataExchange(CDataExchange* pDX)
@@ -67,6 +69,7 @@ BEGIN_MESSAGE_MAP(CVisualAnalysisDlg, CDialogEx)
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
 	ON_BN_CLICKED(IDC_BTN_OPENFILE, &CVisualAnalysisDlg::OnBnClickedBtnOpenfile)
+	ON_BN_CLICKED(IDC_BTN_PEDDETECTION, &CVisualAnalysisDlg::OnBnClickedBtnPeddetection)
 END_MESSAGE_MAP()
 
 
@@ -185,6 +188,10 @@ void CVisualAnalysisDlg::OnBnClickedBtnOpenfile()
 	else return;
  
     //载入图像
+	if(m_pImg == NULL){
+		cvReleaseImage(&m_pImg);
+		m_pImg = NULL;
+	}
     if( (m_pImg = cvLoadImage((LPSTR)(LPCTSTR)filepath, 1)) != 0 )//[[此处的argc==2是否需要改成argc==1？我改了之后才能运行成功。求大牛解惑]] //  wmzzzz : 在"属性"|"debug"|里的command arguments 里加入参数(一个路径:要打开的文件路径) 这时 argc==2 就合理了...可以试试多加几个
     {
 		DrawImgtoHDC(m_pImg,IDC_SHOWIMG);
@@ -193,3 +200,12 @@ void CVisualAnalysisDlg::OnBnClickedBtnOpenfile()
 	return;
 }
 
+
+
+void CVisualAnalysisDlg::OnBnClickedBtnPeddetection()
+{
+	// TODO: Add your control notification handler code here
+	IplImage * pImg = cvCloneImage(m_pImg);
+	m_od.DetectPedestrian(pImg);
+	DrawImgtoHDC(pImg,IDC_SHOWIMG);
+}
