@@ -9,12 +9,24 @@
 
 #include <opencv2/opencv.hpp> 
 
+// construct a color table for displaying
+static CvScalar colors[ ] = {
+        {{0,0,255}},
+        {{0,128,255}},
+        {{0,255,255}},
+        {{0,255,0}},
+        {{255,128,0}},
+        {{255,255,0}},
+        {{255,0,0}},
+        {{255,0,255}}
+    };
+
 class CObjectDetection
 {
 private:
 
 public:
 	CObjectDetection();
-	void DetectPedestrian(IplImage * pImg);
-
+	void DetectPedestrian(IplImage * pImg);	// detect pedestrian
+	void DetectFace(IplImage* pImg);		// detect face
 };

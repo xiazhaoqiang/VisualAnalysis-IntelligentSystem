@@ -42,4 +42,12 @@ private:
 	CObjectDetection m_od;//
 public:
 	afx_msg void OnBnClickedBtnPeddetection();
+	afx_msg void OnBnClickedBtnFacedetectionSingle();
+	afx_msg void OnBnClickedCancel();
+	CString m_filePath;
+	afx_msg void OnBnClickedBtnFacedetectionMultiple();
+private:
+	CString m_imgDir;
+public:
+	CProgressCtrl m_ctrlProcess;
 };

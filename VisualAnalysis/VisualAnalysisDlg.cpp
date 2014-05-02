@@ -53,15 +53,20 @@ END_MESSAGE_MAP()
 CVisualAnalysisDlg::CVisualAnalysisDlg(CWnd* pParent /*=NULL*/)
 	: CDialogEx(CVisualAnalysisDlg::IDD, pParent)
 	, m_pImg(NULL)
+	, m_imgDir(_T(""))
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 	// Initialize the class variables
 	m_pImg = NULL;
+	m_filePath = _T("文件路径");
+	m_imgDir = _T("E:\\Projects\\Dataset\\PKU-SVD-B_V2.0\\1_1_05(06)_0\\prob\\dongnanmeneast_15_1920x1080_30_R1\\");
 }
 
 void CVisualAnalysisDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
+	DDX_Text(pDX, IDC_STATIC_FILEPATH, m_filePath);
+	DDX_Control(pDX, IDC_PROGRESS_IMG, m_ctrlProcess);
 }
 
 BEGIN_MESSAGE_MAP(CVisualAnalysisDlg, CDialogEx)
@@ -70,6 +75,9 @@ BEGIN_MESSAGE_MAP(CVisualAnalysisDlg, CDialogEx)
 	ON_WM_QUERYDRAGICON()
 	ON_BN_CLICKED(IDC_BTN_OPENFILE, &CVisualAnalysisDlg::OnBnClickedBtnOpenfile)
 	ON_BN_CLICKED(IDC_BTN_PEDDETECTION, &CVisualAnalysisDlg::OnBnClickedBtnPeddetection)
+	ON_BN_CLICKED(IDC_BTN_FACEDETECTION_S, &CVisualAnalysisDlg::OnBnClickedBtnFacedetectionSingle)
+	ON_BN_CLICKED(IDCANCEL, &CVisualAnalysisDlg::OnBnClickedCancel)
+	ON_BN_CLICKED(IDC_BTN_FACEDETECTION_M, &CVisualAnalysisDlg::OnBnClickedBtnFacedetectionMultiple)
 END_MESSAGE_MAP()
 
 
@@ -105,6 +113,8 @@ BOOL CVisualAnalysisDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// 设置小图标
 
 	// TODO: 在此添加额外的初始化代码
+	GetDlgItem(IDC_BTN_PEDDETECTION)->EnableWindow(FALSE);
+	GetDlgItem(IDC_BTN_FACEDETECTION_S)->EnableWindow(FALSE);
 
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
@@ -184,17 +194,21 @@ void CVisualAnalysisDlg::OnBnClickedBtnOpenfile()
 	if( dlg.DoModal() == IDOK )
 	{
 		filepath = dlg.GetPathName();
+		m_filePath = filepath;
 	}
 	else return;
  
     //载入图像
-	if(m_pImg == NULL){
+	if(m_pImg != NULL){
 		cvReleaseImage(&m_pImg);
 		m_pImg = NULL;
 	}
     if( (m_pImg = cvLoadImage((LPSTR)(LPCTSTR)filepath, 1)) != 0 )//[[此处的argc==2是否需要改成argc==1？我改了之后才能运行成功。求大牛解惑]] //  wmzzzz : 在"属性"|"debug"|里的command arguments 里加入参数(一个路径:要打开的文件路径) 这时 argc==2 就合理了...可以试试多加几个
     {
 		DrawImgtoHDC(m_pImg,IDC_SHOWIMG);
+		GetDlgItem(IDC_BTN_PEDDETECTION)->EnableWindow(TRUE);
+		GetDlgItem(IDC_BTN_FACEDETECTION_S)->EnableWindow(TRUE);
+		UpdateData(FALSE);
     }
  
 	return;
@@ -208,4 +222,68 @@ void CVisualAnalysisDlg::OnBnClickedBtnPeddetection()
 	IplImage * pImg = cvCloneImage(m_pImg);
 	m_od.DetectPedestrian(pImg);
 	DrawImgtoHDC(pImg,IDC_SHOWIMG);
+}
+
+
+void CVisualAnalysisDlg::OnBnClickedBtnFacedetectionSingle()
+{
+	// TODO: Add your control notification handler code here
+	IplImage * pImg = cvCloneImage(m_pImg);
+	m_od.DetectFace(pImg);
+	DrawImgtoHDC(pImg,IDC_SHOWIMG);
+}
+
+
+void CVisualAnalysisDlg::OnBnClickedCancel()
+{
+	// TODO: Add your control notification handler code here
+	CDialogEx::OnCancel();
+}
+
+
+void CVisualAnalysisDlg::OnBnClickedBtnFacedetectionMultiple()
+{
+	// TODO: Add your control notification handler code here
+	GetDlgItem(IDC_BTN_FACEDETECTION_M)->EnableWindow(FALSE);
+
+	// check the formatting of  image directory
+	CString imgPath;
+	if(m_imgDir.Right(1) != "\\"){m_imgDir = m_imgDir + "\\";}
+	imgPath = m_imgDir + "*.jpg";
+	// define a CFileFind class to search images
+	CFileFind fileFinder;
+	// obtain the total number of images in a directory
+	bool isAll = fileFinder.FindFile(imgPath);
+	int totalNum = 0;
+	while(isAll)
+	{
+		isAll = fileFinder.FindNextFile();
+		totalNum ++;
+	}
+	fileFinder.Close();
+	m_ctrlProcess.SetRange(0,totalNum);
+	m_ctrlProcess.SetPos(0);
+
+	// detect face image-by-image
+	IplImage * pImg = NULL;
+	isAll = fileFinder.FindFile(imgPath);
+	int i = 0;
+	while(isAll)
+	{
+		isAll = fileFinder.FindNextFile();
+		imgPath = fileFinder.GetFilePath();
+		m_filePath = imgPath + _T("\r\n");
+		if( (pImg = cvLoadImage((LPSTR)(LPCTSTR)imgPath, 1)) != 0 )//
+		{
+			m_od.DetectFace(pImg);
+			cvReleaseImage(&pImg);
+			pImg = NULL;
+			i++;
+			m_ctrlProcess.SetPos(i);
+			UpdateData(FALSE);
+		}
+	}
+	fileFinder.Close();
+
+	GetDlgItem(IDC_BTN_FACEDETECTION_M)->EnableWindow(TRUE);
 }
