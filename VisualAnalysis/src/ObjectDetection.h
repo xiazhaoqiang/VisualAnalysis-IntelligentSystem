@@ -8,6 +8,10 @@
 #pragma once
 
 #include <opencv2/opencv.hpp> 
+#include <vector>
+
+using namespace cv;
+using namespace std;
 
 // construct a color table for displaying
 static CvScalar colors[ ] = {
@@ -28,5 +32,5 @@ private:
 public:
 	CObjectDetection();
 	void DetectPedestrian(IplImage * pImg);	// detect pedestrian
-	void DetectFace(IplImage* pImg);		// detect face
+	void DetectFace(IplImage* pImg, vector<CvRect>* faceRegion = NULL);		// detect face
 };

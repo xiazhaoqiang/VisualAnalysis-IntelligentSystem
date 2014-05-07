@@ -41,9 +41,10 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>E:\Software\OpenCV\build\include;E:\Software\OpenCV\build\include\opencv;E:\Software\OpenCV\build\include\opencv2;$(IncludePath)</IncludePath>
-    <LibraryPath>E:\Software\OpenCV\VS2010\lib\Debug;$(LibraryPath)</LibraryPath>
+    <IncludePath>E:\Projects\CPlusPlus\xmlSDK\AnalysisSDK\include;E:\Projects\CPlusPlus\xmlSDK\include;E:\Software\OpenCV\build\include;E:\Software\OpenCV\build\include\opencv;E:\Software\OpenCV\build\include\opencv2;$(IncludePath)</IncludePath>
+    <LibraryPath>E:\Software\OpenCV\VS2010\lib\Debug;E:\Projects\CPlusPlus\xmlSDK\lib;E:\Projects\CPlusPlus\xmlSDK\AnalysisSDK\lib;$(LibraryPath)</LibraryPath>
     <ExecutablePath>E:\Software\OpenCV\VS2010\bin\Debug;$(ExecutablePath)</ExecutablePath>
+    <EmbedManifest>true</EmbedManifest>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -63,7 +64,7 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>opencv_video248d.lib;opencv_ts248d.lib;opencv_objdetect248d.lib;opencv_ml248d.lib;opencv_legacy248d.lib;opencv_imgproc248d.lib;opencv_highgui248d.lib;opencv_gpu248d.lib;opencv_flann248d.lib;opencv_features2d248d.lib;opencv_core248d.lib;opencv_contrib248d.lib;opencv_calib3d248d.lib</AdditionalDependencies>
+      <AdditionalDependencies>AnalysisSDKDEmod.lib;AnalysisSDKd.lib;opencv_video248d.lib;opencv_ts248d.lib;opencv_objdetect248d.lib;opencv_ml248d.lib;opencv_legacy248d.lib;opencv_imgproc248d.lib;opencv_highgui248d.lib;opencv_gpu248d.lib;opencv_flann248d.lib;opencv_features2d248d.lib;opencv_core248d.lib;opencv_contrib248d.lib;opencv_calib3d248d.lib</AdditionalDependencies>
     </Link>
     <Midl>
       <MkTypLibCompatible>false</MkTypLibCompatible>
@@ -119,6 +120,10 @@
   <ItemGroup>
     <ClCompile Include="src\CvvImage.cpp" />
     <ClCompile Include="src\ObjectDetection.cpp" />
+    <ClCompile Include="src\tinystr.cpp" />
+    <ClCompile Include="src\tinyxml.cpp" />
+    <ClCompile Include="src\tinyxmlerror.cpp" />
+    <ClCompile Include="src\tinyxmlparser.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>

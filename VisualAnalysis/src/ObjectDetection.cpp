@@ -13,9 +13,6 @@
 #define new DEBUG_NEW
 #endif
 
-using namespace cv;
-using namespace std;
-
 CObjectDetection::CObjectDetection()
 {
 }
@@ -24,8 +21,9 @@ void CObjectDetection::DetectPedestrian(IplImage* pImg)
 {
 	Mat imgMat(pImg);
 	vector<Rect> found, found_filtered;
+	//获取检测器
 	HOGDescriptor hog;
-	hog.setSVMDetector(HOGDescriptor::getDefaultPeopleDetector());//得到检测器
+	hog.setSVMDetector(HOGDescriptor::getDefaultPeopleDetector());
 	hog.detectMultiScale(imgMat, found, 0, Size(8,8), Size(32,32), 1.05, 2);
 	//*// 显示  
     for (size_t i = 0; i < found.size(); i++)
@@ -59,7 +57,7 @@ void CObjectDetection::DetectPedestrian(IplImage* pImg)
 	//imshow("people detector",imgMat);
 }
 
-void CObjectDetection::DetectFace(IplImage* pImg)
+void CObjectDetection::DetectFace(IplImage* pImg, vector<CvRect>* faceRegion)
 {
 	CvHaarClassifierCascade* cascade = NULL;
 	CvMemStorage* storage = NULL;
@@ -80,20 +78,28 @@ void CObjectDetection::DetectFace(IplImage* pImg)
     cvResize( grayImg, smallImg, CV_INTER_LINEAR ); // the size of small image 
     cvEqualizeHist( smallImg, smallImg );
 	cvClearMemStorage( storage );
-
+	// detect faces
 	CvSeq* faces = cvHaarDetectObjects( smallImg, cascade, storage,
                                             1.1, 2, 0/*CV_HAAR_DO_CANNY_PRUNING*/,
                                             cvSize(1, 1) );
+	// obtain the original position by inverse transform
 	CvPoint pt_tl, pt_br;
 	for( int i = 0; i < (faces ? faces->total : 0); i++ )
     {
 		CvRect* r = (CvRect*)cvGetSeqElem( faces, i );
-		pt_tl.x = cvRound( r->x*scale ); 
-		pt_tl.y = cvRound( r->y*scale );
-		pt_br.x = cvRound( (r->x+r->width)*scale );
-		pt_br.y = cvRound( (r->y+r->height)*scale );
+		r->x = cvRound( r->x*scale );
+		r->y = cvRound( r->y*scale );
+		r->width = cvRound( r->width*scale );
+		r->height = cvRound( r->height*scale );
+		pt_tl.x = r->x; 
+		pt_tl.y = r->y;
+		pt_br.x = r->x+r->width;
+		pt_br.y = r->y+r->height;
 		cvRectangle(pImg,pt_tl,pt_br,cvScalar(0,0,255),5);
+		// save the face region to a vector
+		if(faceRegion != NULL){faceRegion->push_back(*r);}
     }
+	// release memories
 	cvReleaseImage( &grayImg );
     cvReleaseImage( &smallImg );
 }

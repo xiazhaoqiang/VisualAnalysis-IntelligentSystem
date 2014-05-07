@@ -6,7 +6,13 @@
 #include "VisualAnalysis.h"
 #include "VisualAnalysisDlg.h"
 #include "afxdialogex.h"
-//#include "opencv.hpp"
+#include <vector>
+
+
+#include "Test_ObjectsDetection.h"
+
+using namespace std;
+
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -59,7 +65,8 @@ CVisualAnalysisDlg::CVisualAnalysisDlg(CWnd* pParent /*=NULL*/)
 	// Initialize the class variables
 	m_pImg = NULL;
 	m_filePath = _T("文件路径");
-	m_imgDir = _T("E:\\Projects\\Dataset\\PKU-SVD-B_V2.0\\1_1_05(06)_0\\prob\\dongnanmeneast_15_1920x1080_30_R1\\");
+	// dongnanmeneast_15_1920x1080_30_R1
+	m_imgDir = _T("E:\\Projects\\Dataset\\PKU-SVD-B_V2.0\\1_1_05(06)_0\\prob\\dongnanmeneast_15_1920x1080_30_R1");
 }
 
 void CVisualAnalysisDlg::DoDataExchange(CDataExchange* pDX)
@@ -182,6 +189,65 @@ void CVisualAnalysisDlg::DrawImgtoHDC(IplImage * img, UINT ID)
 	ReleaseDC(pDC);
 }
 
+void CVisualAnalysisDlg::CreateXMLFile(char* taskType)
+{
+	// create a xml file for saving detection reuslts
+	int type;
+	if(taskType == "fd"){type = 0;}
+
+	int pos = m_imgDir.ReverseFind('\\');
+	CString metaFile = m_imgDir.Right(m_imgDir.GetLength()-1-pos);
+	CString xmlName = _T(".\\Result\\") + metaFile + _T("_") + taskType + _T(".xml");
+	TiXmlDocument* xmlDocument = new TiXmlDocument();	//创建一个根结点
+	TiXmlDeclaration* xmlDeclaration=new TiXmlDeclaration("1.0","gb2312","");	//创建xml文件头
+	xmlDocument->LinkEndChild(xmlDeclaration);	//加入文件头
+	
+	// 创建xml meta信息
+	TiXmlElement* messageNode = new TiXmlElement("Message");	//创建根节点
+	messageNode->SetAttribute("Version","1.0");
+	xmlDocument->LinkEndChild(messageNode);
+
+	TiXmlElement* infoNode = new TiXmlElement("Info");
+	infoNode->SetAttribute("evaluateType",type);
+	infoNode->SetAttribute("mediaFile",(LPSTR)(LPCTSTR)metaFile);
+	messageNode->LinkEndChild(infoNode);
+
+	//TiXmlElement* itemsNode = new TiXmlElement("Items");
+	//messageNode->LinkEndChild(itemsNode);
+
+	// 写入文件
+	xmlDocument->SaveFile((LPSTR)(LPCTSTR)xmlName);
+	// 释放内存
+	delete xmlDocument;
+	//delete xmlDeclaration;
+	xmlDocument = NULL;
+	//xmlDeclaration = NULL;
+}
+
+
+void CVisualAnalysisDlg::SaveDetectionResults(vector<CvRect>* r, CString mediaFile, TiXmlElement* itemsNode, int type)
+{
+	TiXmlElement* itemNode = new TiXmlElement("Item");
+	itemNode->SetAttribute("imageName",(LPSTR)(LPCTSTR)mediaFile);
+	itemsNode->LinkEndChild(itemNode);
+
+	int len = r->size();
+	CvRect* face;
+	for(int i=0;i<len;i++)
+	{
+		face = &(r->at(i));
+		TiXmlElement* labelNode = new TiXmlElement("Label");
+		labelNode->SetAttribute("type",type);
+		labelNode->SetAttribute("l",face->x);
+		labelNode->SetAttribute("t",face->y);
+		labelNode->SetAttribute("r",face->x+face->width);
+		labelNode->SetAttribute("b",face->y+face->height);
+		itemNode->LinkEndChild(labelNode);
+	}
+	//xml_DetectionResults("fd",infoResults,"ppx_fd.xml",1);
+
+}
+
 /****************** 消息响应函数 **********************/
 void CVisualAnalysisDlg::OnBnClickedBtnOpenfile()
 {
@@ -246,14 +312,28 @@ void CVisualAnalysisDlg::OnBnClickedBtnFacedetectionMultiple()
 	// TODO: Add your control notification handler code here
 	GetDlgItem(IDC_BTN_FACEDETECTION_M)->EnableWindow(FALSE);
 
+	// generate a folder for the detection results
+	if(!PathIsDirectory(_T(".\\Result"))){CreateDirectory(_T(".\\Result"),NULL);};
+	CreateXMLFile("fd");
+
 	// check the formatting of  image directory
+	int pos = m_imgDir.ReverseFind('\\');
 	CString imgPath;
+	CString xmlName = m_imgDir.Right(m_imgDir.GetLength()-1-pos);
+	xmlName = _T(".\\Result\\") + xmlName + _T("_fd.xml");
+	// load xml file
+	TiXmlDocument* xmlDocument = new TiXmlDocument((LPSTR)(LPCTSTR)xmlName);
+	xmlDocument->LoadFile();
+	TiXmlElement * messageNode = xmlDocument->FirstChildElement();
+	TiXmlElement* itemsNode = new TiXmlElement("Items");
+	messageNode->LinkEndChild(itemsNode);
+	
 	if(m_imgDir.Right(1) != "\\"){m_imgDir = m_imgDir + "\\";}
 	imgPath = m_imgDir + "*.jpg";
 	// define a CFileFind class to search images
 	CFileFind fileFinder;
 	// obtain the total number of images in a directory
-	bool isAll = fileFinder.FindFile(imgPath);
+	BOOL isAll = fileFinder.FindFile(imgPath);
 	int totalNum = 0;
 	while(isAll)
 	{
@@ -264,26 +344,42 @@ void CVisualAnalysisDlg::OnBnClickedBtnFacedetectionMultiple()
 	m_ctrlProcess.SetRange(0,totalNum);
 	m_ctrlProcess.SetPos(0);
 
-	// detect face image-by-image
+	// detect faces image-by-image
 	IplImage * pImg = NULL;
+	CString imgName;
 	isAll = fileFinder.FindFile(imgPath);
 	int i = 0;
+	vector<CvRect> faces;
+	// traversing the whole folder
 	while(isAll)
 	{
 		isAll = fileFinder.FindNextFile();
 		imgPath = fileFinder.GetFilePath();
+		imgName = fileFinder.GetFileName();
 		m_filePath = imgPath + _T("\r\n");
 		if( (pImg = cvLoadImage((LPSTR)(LPCTSTR)imgPath, 1)) != 0 )//
 		{
-			m_od.DetectFace(pImg);
+			// detect faces
+			m_od.DetectFace(pImg,&faces);
+			// save the detection results
+			imgPath = _T(".\\Result\\") + imgName;
+			//cvSaveImage((LPSTR)(LPCTSTR)imgPath,pImg);
+			SaveDetectionResults(&faces,imgName,itemsNode,0);
 			cvReleaseImage(&pImg);
 			pImg = NULL;
+			// update the display of UI:processing bar
 			i++;
 			m_ctrlProcess.SetPos(i);
 			UpdateData(FALSE);
 		}
+		faces.clear();
+		xmlDocument->SaveFile((LPSTR)(LPCTSTR)xmlName);
 	}
 	fileFinder.Close();
+	// 释放内存
+	delete xmlDocument;
+	xmlDocument = NULL;
 
 	GetDlgItem(IDC_BTN_FACEDETECTION_M)->EnableWindow(TRUE);
 }
+

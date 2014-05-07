@@ -8,6 +8,8 @@
 #include <highgui.h>
 #include "src\CvvImage.h"
 #include "src\ObjectDetection.h"
+#include "src\tinyxml.h"
+#include "src\tinystr.h"
 
 // CVisualAnalysisDlg ¶Ô»°¿ò
 class CVisualAnalysisDlg : public CDialogEx
@@ -50,4 +52,6 @@ private:
 	CString m_imgDir;
 public:
 	CProgressCtrl m_ctrlProcess;
+	void SaveDetectionResults(vector<CvRect>* r, CString mediaFile, TiXmlElement* itemsNode, int type = 0);
+	void CreateXMLFile(char* taskType);
 };
