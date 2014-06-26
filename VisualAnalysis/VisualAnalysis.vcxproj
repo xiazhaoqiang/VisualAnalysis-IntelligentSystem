@@ -110,6 +110,7 @@
     <None Include="res\VisualAnalysis.rc2" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="ParamConf.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="src\ObjectDetection.h" />
     <ClInclude Include="stdafx.h" />
@@ -118,6 +119,7 @@
     <ClInclude Include="VisualAnalysisDlg.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="ParamConf.cpp" />
     <ClCompile Include="src\CvvImage.cpp" />
     <ClCompile Include="src\ObjectDetection.cpp" />
     <ClCompile Include="src\tinystr.cpp" />

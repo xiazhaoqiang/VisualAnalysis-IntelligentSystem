@@ -7,9 +7,10 @@
 #include "VisualAnalysisDlg.h"
 #include "afxdialogex.h"
 #include <vector>
+#include "ParamConf.h"
 
 
-#include "Test_ObjectsDetection.h"
+//#include "Test_ObjectsDetection.h"
 
 using namespace std;
 
@@ -60,6 +61,8 @@ CVisualAnalysisDlg::CVisualAnalysisDlg(CWnd* pParent /*=NULL*/)
 	: CDialogEx(CVisualAnalysisDlg::IDD, pParent)
 	, m_pImg(NULL)
 	, m_imgDir(_T(""))
+	, m_radioValue(0)
+	, m_cbRecMethods(_T(""))
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 	// Initialize the class variables
@@ -74,6 +77,8 @@ void CVisualAnalysisDlg::DoDataExchange(CDataExchange* pDX)
 	CDialogEx::DoDataExchange(pDX);
 	DDX_Text(pDX, IDC_STATIC_FILEPATH, m_filePath);
 	DDX_Control(pDX, IDC_PROGRESS_IMG, m_ctrlProcess);
+	DDX_Radio(pDX, IDC_RADIO_TRAIN, m_radioValue);
+	DDX_CBString(pDX, IDC_COMBO_RECMETHODS, m_cbRecMethods);
 }
 
 BEGIN_MESSAGE_MAP(CVisualAnalysisDlg, CDialogEx)
@@ -81,10 +86,14 @@ BEGIN_MESSAGE_MAP(CVisualAnalysisDlg, CDialogEx)
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
 	ON_BN_CLICKED(IDC_BTN_OPENFILE, &CVisualAnalysisDlg::OnBnClickedBtnOpenfile)
-	ON_BN_CLICKED(IDC_BTN_PEDDETECTION, &CVisualAnalysisDlg::OnBnClickedBtnPeddetection)
+	ON_BN_CLICKED(IDC_BTN_PEDDETECTION, &CVisualAnalysisDlg::OnBnClickedBtnPeddetectionSingle)
 	ON_BN_CLICKED(IDC_BTN_FACEDETECTION_S, &CVisualAnalysisDlg::OnBnClickedBtnFacedetectionSingle)
 	ON_BN_CLICKED(IDCANCEL, &CVisualAnalysisDlg::OnBnClickedCancel)
 	ON_BN_CLICKED(IDC_BTN_FACEDETECTION_M, &CVisualAnalysisDlg::OnBnClickedBtnFacedetectionMultiple)
+	ON_BN_CLICKED(IDC_CHK_CONFIGURE, &CVisualAnalysisDlg::OnClickedChkConfigure)
+	ON_BN_CLICKED(IDC_BTN_CONFIGURE, &CVisualAnalysisDlg::OnBnClickedBtnConfigure)
+	ON_BN_CLICKED(IDC_BTN_PEDDETECTION_M, &CVisualAnalysisDlg::OnBnClickedBtnPeddetectionMultiple)
+	ON_BN_CLICKED(IDC_BTN_FACEREC_M, &CVisualAnalysisDlg::OnBnClickedBtnFaceRecMultiple)
 END_MESSAGE_MAP()
 
 
@@ -193,7 +202,15 @@ void CVisualAnalysisDlg::CreateXMLFile(char* taskType)
 {
 	// create a xml file for saving detection reuslts
 	int type;
-	if(taskType == "fd"){type = 0;}
+	if(taskType == "pd")	//type: pedestrian detection 
+		type = 1;
+	else if(taskType == "fd")	//type: face detection 
+		type = 5;
+	else if(taskType == "fr")
+		type = 6;
+	else
+		type = 0;
+
 
 	int pos = m_imgDir.ReverseFind('\\');
 	CString metaFile = m_imgDir.Right(m_imgDir.GetLength()-1-pos);
@@ -232,16 +249,16 @@ void CVisualAnalysisDlg::SaveDetectionResults(vector<CvRect>* r, CString mediaFi
 	itemsNode->LinkEndChild(itemNode);
 
 	int len = r->size();
-	CvRect* face;
+	CvRect* rec;
 	for(int i=0;i<len;i++)
 	{
-		face = &(r->at(i));
+		rec = &(r->at(i));
 		TiXmlElement* labelNode = new TiXmlElement("Label");
 		labelNode->SetAttribute("type",type);
-		labelNode->SetAttribute("l",face->x);
-		labelNode->SetAttribute("t",face->y);
-		labelNode->SetAttribute("r",face->x+face->width);
-		labelNode->SetAttribute("b",face->y+face->height);
+		labelNode->SetAttribute("l",rec->x);
+		labelNode->SetAttribute("t",rec->y);
+		labelNode->SetAttribute("r",rec->x+rec->width);
+		labelNode->SetAttribute("b",rec->y+rec->height);
 		itemNode->LinkEndChild(labelNode);
 	}
 	//xml_DetectionResults("fd",infoResults,"ppx_fd.xml",1);
@@ -281,32 +298,126 @@ void CVisualAnalysisDlg::OnBnClickedBtnOpenfile()
 }
 
 
-
-void CVisualAnalysisDlg::OnBnClickedBtnPeddetection()
+void CVisualAnalysisDlg::OnClickedChkConfigure()
 {
 	// TODO: Add your control notification handler code here
+	
+}
+
+
+void CVisualAnalysisDlg::OnBnClickedBtnConfigure()
+{
+	// TODO: Add your control notification handler code here
+	if(m_pc.DoModal()==IDOK)
+	{
+		m_imgDir = m_pc.m_imgDir;
+		m_od.scaling = atof((LPTSTR)(LPCTSTR)m_pc.m_paramScale);
+		m_od.pyramidCoef = atof((LPTSTR)(LPCTSTR)m_pc.m_paramFactor);
+	}
+}
+
+
+// 单幅行人检测
+void CVisualAnalysisDlg::OnBnClickedBtnPeddetectionSingle()
+{
+	// TODO: Add your control notification handler code here
+	GetDlgItem(IDC_BTN_PEDDETECTION)->EnableWindow(FALSE);
 	IplImage * pImg = cvCloneImage(m_pImg);
 	m_od.DetectPedestrian(pImg);
 	DrawImgtoHDC(pImg,IDC_SHOWIMG);
+	GetDlgItem(IDC_BTN_PEDDETECTION)->EnableWindow(TRUE);
 }
 
-
+// 单幅人脸检测
 void CVisualAnalysisDlg::OnBnClickedBtnFacedetectionSingle()
 {
 	// TODO: Add your control notification handler code here
+	GetDlgItem(IDC_BTN_FACEDETECTION_S)->EnableWindow(FALSE);
 	IplImage * pImg = cvCloneImage(m_pImg);
 	m_od.DetectFace(pImg);
 	DrawImgtoHDC(pImg,IDC_SHOWIMG);
+	GetDlgItem(IDC_BTN_FACEDETECTION_S)->EnableWindow(TRUE);
 }
 
-
-void CVisualAnalysisDlg::OnBnClickedCancel()
+// 多幅图像的行人检测函数
+void CVisualAnalysisDlg::OnBnClickedBtnPeddetectionMultiple()
 {
 	// TODO: Add your control notification handler code here
-	CDialogEx::OnCancel();
+	GetDlgItem(IDC_BTN_PEDDETECTION_M)->EnableWindow(FALSE);
+
+	// generate a folder for the detection results
+	if(!PathIsDirectory(_T(".\\Result"))){CreateDirectory(_T(".\\Result"),NULL);};
+	CreateXMLFile("pd");
+
+	// check the formatting of  image directory
+	int pos = m_imgDir.ReverseFind('\\');
+	CString imgPath;
+	CString xmlName = m_imgDir.Right(m_imgDir.GetLength()-1-pos);
+	xmlName = _T(".\\Result\\") + xmlName + _T("_pd.xml");
+	// load xml file
+	TiXmlDocument* xmlDocument = new TiXmlDocument((LPSTR)(LPCTSTR)xmlName);
+	xmlDocument->LoadFile();
+	TiXmlElement * messageNode = xmlDocument->FirstChildElement();
+	TiXmlElement* itemsNode = new TiXmlElement("Items");
+	messageNode->LinkEndChild(itemsNode);
+	
+	if(m_imgDir.Right(1) != "\\") m_imgDir = m_imgDir + "\\";
+	imgPath = m_imgDir + "*.jpg";
+	// define a CFileFind class to search images
+	CFileFind fileFinder;
+	// obtain the total number of images in a directory
+	BOOL isAll = fileFinder.FindFile(imgPath);
+	int totalNum = 0;
+	while(isAll)
+	{
+		isAll = fileFinder.FindNextFile();
+		totalNum ++;
+	}
+	fileFinder.Close();
+	m_ctrlProcess.SetRange(0,totalNum);
+	m_ctrlProcess.SetPos(0);
+
+	// detect faces image-by-image
+	IplImage * pImg = NULL;
+	CString imgName;
+	isAll = fileFinder.FindFile(imgPath);
+	int i = 0;
+	vector<CvRect> regions;
+	// traversing the whole folder
+	while(isAll)
+	{
+		isAll = fileFinder.FindNextFile();
+		imgPath = fileFinder.GetFilePath();
+		imgName = fileFinder.GetFileName();
+		m_filePath = imgPath + _T("\r\n");
+		if( (pImg = cvLoadImage((LPSTR)(LPCTSTR)imgPath, 1)) != NULL )//
+		{
+			// detect people
+			m_od.DetectPedestrian(pImg,&regions);
+			// save the detection results
+			imgPath = _T(".\\Result\\") + imgName;
+			//cvSaveImage((LPSTR)(LPCTSTR)imgPath,pImg);
+			SaveDetectionResults(&regions,imgName,itemsNode,2);
+			cvReleaseImage(&pImg);
+			pImg = NULL;
+			// update the display of UI:processing bar
+			i++;
+			m_ctrlProcess.SetPos(i);
+			UpdateData(FALSE);
+		}
+		regions.clear();
+		xmlDocument->SaveFile((LPSTR)(LPCTSTR)xmlName);
+	}
+	fileFinder.Close();
+	// 释放内存
+	delete xmlDocument;
+	xmlDocument = NULL;
+
+	GetDlgItem(IDC_BTN_PEDDETECTION_M)->EnableWindow(TRUE);
 }
 
 
+// 多幅图像的人脸检测函数
 void CVisualAnalysisDlg::OnBnClickedBtnFacedetectionMultiple()
 {
 	// TODO: Add your control notification handler code here
@@ -328,7 +439,7 @@ void CVisualAnalysisDlg::OnBnClickedBtnFacedetectionMultiple()
 	TiXmlElement* itemsNode = new TiXmlElement("Items");
 	messageNode->LinkEndChild(itemsNode);
 	
-	if(m_imgDir.Right(1) != "\\"){m_imgDir = m_imgDir + "\\";}
+	if(m_imgDir.Right(1) != "\\") m_imgDir = m_imgDir + "\\";
 	imgPath = m_imgDir + "*.jpg";
 	// define a CFileFind class to search images
 	CFileFind fileFinder;
@@ -383,3 +494,126 @@ void CVisualAnalysisDlg::OnBnClickedBtnFacedetectionMultiple()
 	GetDlgItem(IDC_BTN_FACEDETECTION_M)->EnableWindow(TRUE);
 }
 
+// 多幅人脸的识别函数
+void CVisualAnalysisDlg::OnBnClickedBtnFaceRecMultiple()
+{
+	// TODO: Add your control notification handler code here
+	if(m_radioValue == -1)
+	{
+		MessageBox(_T("Error"),_T("Error"));
+		return;
+	}
+	GetDlgItem(IDC_BTN_FACEREC_M)->EnableWindow(FALSE);
+	UpdateData(TRUE);
+
+	// parameters setup
+	int faceWidth = 30;
+	int faceHeight = 36;
+
+	// training procedure
+	if(m_radioValue ==  0)
+	{
+		CFileStatus tmp;
+		if(!CFile::GetStatus(".\\Data\\TrainingSetFR\\labelsTrain.txt",tmp))
+		{
+		    // image file folder
+			vector<string> imgDir;
+			string imgdir1("E:\\Projects\\Dataset\\PKU-SVD-B_V2.0\\1_1_05(06)_0\\prob\\dongnanmeneast_15_1920x1080_30_R1\\");
+			string imgdir2("E:\\Projects\\Dataset\\PKU-SVD-B_V2.0\\1_1_05(06)_0\\prob\\dongnanmenwest_16_1920x1080_30_R1\\");
+			imgDir.push_back(imgdir1);
+			imgDir.push_back(imgdir2);
+			// annotation file path
+			vector<string> labelFile;
+			string labelfile1(".\\Data\\GroundTruth\\dongnanmeneast_15_1920x1080_30_R1.xml");
+			string labelfile2(".\\Data\\GroundTruth\\dongnanmenwest_16_1920x1080_30_R1.xml");
+			labelFile.push_back(labelfile1);
+			labelFile.push_back(labelfile2);
+			// normalize the dataset formatting
+			m_od.NormalizeDataset(imgDir,labelFile,"FR");
+		}
+		// load data
+		vector<int> personIDs;
+		vector<int> labels;
+		vector<Mat> images;
+		CString str;	// a buffer for a textline
+		CStdioFile file;
+		// load the id of each person
+		file.Open(".\\Data\\TrainingSetFR\\personIDs.txt",CFile::modeRead);
+		while(file.ReadString(str)!= FALSE)
+		{
+			personIDs.push_back(atoi(str));
+		}
+		file.Close();
+		// load the labels for images
+		file.Open(".\\Data\\TrainingSetFR\\labelsTrain.txt",CFile::modeRead);
+		while(file.ReadString(str)!= FALSE)
+		{
+			labels.push_back(atoi(str));
+		}
+		file.Close();
+		// load the images
+		string prefix(".\\Data\\\\TrainingSetFR\\");
+		file.Open(".\\Data\\TrainingSetFR\\imagesTrain.txt",CFile::modeRead);
+		Mat srcImg,scaledImg;
+		while(file.ReadString(str)!= FALSE)
+		{
+			m_filePath = str;
+			srcImg = imread(prefix+str.GetBuffer(0),CV_LOAD_IMAGE_GRAYSCALE);
+			equalizeHist(srcImg,srcImg);
+			resize(srcImg,scaledImg,Size(faceWidth,faceHeight));
+			images.push_back(scaledImg);
+			UpdateData(FALSE);
+		}
+		file.Close();
+		string frm = m_cbRecMethods.GetBuffer(0);
+		m_filePath = _T("trainging...");
+		UpdateData(FALSE);
+		m_od.TrainModelFR(images,labels,frm);
+		m_filePath = _T("done...");
+		UpdateData(FALSE);
+	}
+	else // valuation procedure
+	{
+		vector<int> labels;
+		vector<Mat> images;
+		CString str;	// a buffer for a textline
+		CStdioFile file;
+		
+		// load the labels for images
+		file.Open(".\\Data\\TrainingSetFR\\labelsVal.txt",CFile::modeRead);
+		while(file.ReadString(str)!= FALSE)
+		{
+			labels.push_back(atoi(str));
+		}
+		file.Close();
+		// load the images
+		string prefix(".\\Data\\\\TrainingSetFR\\");
+		file.Open(".\\Data\\TrainingSetFR\\imagesVal.txt",CFile::modeRead);
+		Mat srcImg,scaledImg;
+		while(file.ReadString(str)!= FALSE)
+		{
+			m_filePath = str;
+			srcImg = imread(prefix+str.GetBuffer(0),CV_LOAD_IMAGE_GRAYSCALE);
+			equalizeHist(srcImg,srcImg);
+			resize(srcImg,scaledImg,Size(faceWidth,faceHeight));
+			images.push_back(scaledImg);
+			UpdateData(FALSE);
+		}
+		file.Close();
+		string frm = m_cbRecMethods.GetBuffer(0);
+		m_filePath = _T("predicting...");
+		UpdateData(FALSE);
+		double accuracy = 0;
+		accuracy = m_od.predictFR(images,labels,frm);
+		m_filePath.Format(_T("Accuracy:  %lf"),accuracy);
+		UpdateData(FALSE);
+	}
+	GetDlgItem(IDC_BTN_FACEREC_M)->EnableWindow(TRUE);
+}
+
+
+void CVisualAnalysisDlg::OnBnClickedCancel()
+{
+	// TODO: Add your control notification handler code here
+	CDialogEx::OnCancel();
+}

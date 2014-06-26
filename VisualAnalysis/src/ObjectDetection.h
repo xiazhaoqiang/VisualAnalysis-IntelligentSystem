@@ -9,6 +9,7 @@
 
 #include <opencv2/opencv.hpp> 
 #include <vector>
+#include <string>
 
 using namespace cv;
 using namespace std;
@@ -31,6 +32,16 @@ private:
 
 public:
 	CObjectDetection();
-	void DetectPedestrian(IplImage * pImg);	// detect pedestrian
+	void DetectPedestrian(IplImage * pImg, vector<CvRect>* peopleRegion = NULL);	// detect pedestrian
 	void DetectFace(IplImage* pImg, vector<CvRect>* faceRegion = NULL);		// detect face
+	void TrainModelFR(vector<Mat>& imgMats, vector<int>& labelMats, string recMethod = "FisherFace");
+	double predictFR(vector<Mat>& imgMats, vector<int>& labelMats, string recMethod = "FisherFace");
+	void NormalizeDataset(vector<string> imgDirs, vector<string> labelFiles, char* taskName = NULL);
+	double scaling;	// 图像缩放系数
+	double pyramidCoef;	// 金字塔图像间缩放比例
+	double SkinColorModelFilter(Mat& faceRect);
+	CvHaarClassifierCascade* frontalFaceCascade;
+	CvHaarClassifierCascade* bodyCascade;
+	HOGDescriptor hog;
+	int hogType; /*hogType:0-None;1-human*/
 };
