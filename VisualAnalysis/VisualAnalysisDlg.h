@@ -50,6 +50,7 @@ public:
 	afx_msg void OnBnClickedBtnConfigure();
 	afx_msg void OnBnClickedBtnPeddetectionMultiple();
 	afx_msg void OnBnClickedBtnFaceRecMultiple();
+	afx_msg void OnBnClickedBtnFacerecS();
 private:
 	CString m_imgDir;
 public:
@@ -58,9 +59,13 @@ public:
 	// Draw image to the HDC of a picture control
 	void DrawImgtoHDC(IplImage * img, UINT ID);
 	void SaveDetectionResults(vector<CvRect>* r, CString mediaFile, TiXmlElement* itemsNode, int type = 0);
+	void SaveRecResults(vector<CvRect>* r, CString mediaFile, TiXmlElement* itemsNode, vector<int>* id);
 	void CreateXMLFile(char* taskType);
+	void TrainFR(string methodType);
+	void PredictFR(string methodType);
 
 	int m_radioValue;
 	CString m_cbRecMethods;
 	CParamConf m_pc;
+
 };

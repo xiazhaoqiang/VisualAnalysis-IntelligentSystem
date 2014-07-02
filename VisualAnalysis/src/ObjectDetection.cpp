@@ -7,6 +7,7 @@
 ***************************************************************/
 #include "stdafx.h"
 #include "ObjectDetection.h"
+#include "facerec.hpp"
 
 
 #ifdef _DEBUG
@@ -21,6 +22,8 @@ CObjectDetection::CObjectDetection()
 	frontalFaceCascade = NULL;
 	bodyCascade = NULL;
 	hogType = 0;
+	srcRows = 12; // height
+	srcCols = 10; // width
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -97,13 +100,13 @@ void CObjectDetection::DetectPedestrian(IplImage* pImg, vector<CvRect>* peopleRe
 		r.x = max(0,cvRound(r.x*scaling + r.width*0.1));
         r.height = max(0,cvRound(r.height*scaling*0.8));  
 		r.y = max(0,cvRound(r.y*scaling + r.height*0.1)); 
-		rectangle(imgMat, r, cv::Scalar(255,0,0), 3); 
+
 		if(peopleRegion != NULL)
 		{
-			CvRect pr;
-			pr.x = r.x; pr.y = r.y;
-			pr.width = r.width;
-			pr.height = r.height;
+			CvRect pr = (CvRect) r;
+			//pr.x = r.x; pr.y = r.y;
+			//pr.width = r.width;
+			//pr.height = r.height;
 			peopleRegion->push_back(pr); 
 		}
     }
@@ -153,11 +156,7 @@ void CObjectDetection::DetectFace(IplImage* pImg, vector<CvRect>* faceRegion)
                                             cvSize(15, 15) );
 	// obtain the original position by inverse transform
 	Mat imgM(colorImg);
-	//namedWindow("MyPicture");
-    //imshow("MyPicture",imgM);
-    //waitKey(0);
 
-	CvPoint pt_tl, pt_br;
 	double ratio = 0.0;
 	for( int i = 0; i < (faces ? faces->total : 0); i++ )
     {
@@ -177,11 +176,6 @@ void CObjectDetection::DetectFace(IplImage* pImg, vector<CvRect>* faceRegion)
 		r->y = cvRound( r->y*scale );
 		r->width = cvRound( r->width*scale );
 		r->height = cvRound( r->height*scale );
-		pt_tl.x = r->x; 
-		pt_tl.y = r->y;
-		pt_br.x = r->x+r->width;
-		pt_br.y = r->y+r->height;
-		cvRectangle(pImg,pt_tl,pt_br,cvScalar(0,0,255),5);
 		// save the face region to a vector
 		if(faceRegion != NULL)
 			faceRegion->push_back(*r);
@@ -259,45 +253,72 @@ void CObjectDetection::NormalizeDataset(vector<string> imgDirs, vector<string> l
 	}
 }
 
-
 void CObjectDetection::TrainModelFR(vector<Mat>& imgMats, vector<int>& labelMats, string recMethod)
 {
+	// create a class for specified method
 	Ptr<FaceRecognizer> model;
-	if(recMethod == _T("EigenFace"))
-		model =  createEigenFaceRecognizer();
+	if(recMethod == _T("CRClassifier"))
+		model = new CRClassifier();
+	else if(recMethod == _T("EigenFace"))
+		model = createEigenFaceRecognizer();
 	else if(recMethod == _T("FisherFace"))
 		model = createFisherFaceRecognizer();
+	else if(recMethod == _T("LBPHFace"))
+		model = createLBPHFaceRecognizer();
 	else
-		model =  createLBPHFaceRecognizer();
+		return;
 	model->train(imgMats, labelMats);
 	// save model
 	string filePath(_T(".\\Data\\"));
 	filePath += recMethod;
 	filePath += _T(".xml");
 	model->save(filePath);
+
 }
 
-double CObjectDetection::predictFR(vector<Mat>& imgMats, vector<int>& labelMats, string recMethod)
+void CObjectDetection::PredictFR(IplImage* pImg, vector<CvRect>* faceRegion, vector<int>* id, string recMethod)
 {
 	Ptr<FaceRecognizer> model;
-	if(recMethod == _T("EigenFace"))
+	if(recMethod == _T("CRClassifier"))
+		model = new CRClassifier();
+	else if(recMethod == _T("EigenFace"))
 		model =  createEigenFaceRecognizer();
 	else if(recMethod == _T("FisherFace"))
 		model = createFisherFaceRecognizer();
-	else
+	else if(recMethod == _T("LBPHFace"))
 		model =  createLBPHFaceRecognizer();
+	else
+		return ;
 	// load model
 	string filePath(_T(".\\Data\\"));
 	filePath += recMethod;
 	filePath += _T(".xml");
 	model->load(filePath);
-	int numImg = imgMats.size();
-	int t = 0;
-	for(int i=0;i<numImg;i++)
+	// detect face
+	vector<CvRect> faces;
+	DetectFace(pImg,&faces);
+	// predict
+	// preprocessing
+	Mat imgMat(pImg);
+	Mat grayMat(imgMat.rows,imgMat.cols,CV_8UC1);
+	cvtColor(imgMat,grayMat,CV_RGB2GRAY);
+	Mat smallMat(Size(srcCols,srcRows),CV_8UC1);
+	equalizeHist(grayMat,grayMat);
+
+	int predLabel = 0;
+	double coef = 0.;
+	for(int i = 0;i<(int)faces.size();i++)
 	{
-		int predLabel = model->predict(imgMats[i]);
-		if(predLabel == labelMats[i])
-			t++;
+		Rect roi(faces.at(i));
+		Mat rdata(grayMat,roi);
+		resize(rdata,smallMat,Size(srcCols,srcRows));
+		model->predict(smallMat,predLabel,coef);
+		if(coef > 0.05)
+		{
+			faceRegion->push_back(faces.at(i));
+			id->push_back(predLabel);
+		}
 	}
-	return ((double)t)/numImg;
+
+	return ;
 }
