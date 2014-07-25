@@ -19,11 +19,15 @@ CObjectDetection::CObjectDetection()
 	// 初始化类成员参数
 	scaling = 4.0;
 	pyramidCoef = 1.1;
+	skinModelTH = 0.8;
+	winSize = 0.8;
 	frontalFaceCascade = NULL;
+	profileFaceCascade = NULL;
 	bodyCascade = NULL;
 	hogType = 0;
 	srcRows = 12; // height
 	srcCols = 10; // width
+	altNum = 2;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -58,7 +62,7 @@ void CObjectDetection::DetectPedestrian(IplImage* pImg, vector<CvRect>* peopleRe
 	// option: haarcascade_mcs_upperbody, haarcascade_fullbody
 	if(NULL == bodyCascade)
 	{
-		bodyCascade = (CvHaarClassifierCascade*)cvLoad( ".\\Data\\haarcascades\\haarcascade_fullbody.xml", 0, 0, 0 );
+		bodyCascade = (CvHaarClassifierCascade*)cvLoad( ".\\Data\\Cascades\\haarcascade_fullbody.xml", 0, 0, 0 );
 		if( !bodyCascade )
 		{
 			MessageBox(NULL,_T("Missed Cascade File for Human Body!"),_T("Error Message"),MB_YESNO|MB_ICONQUESTION);
@@ -125,16 +129,24 @@ void CObjectDetection::DetectFace(IplImage* pImg, vector<CvRect>* faceRegion)
 	//
 	// use opencv 1.x style to implement the face detection
 	//
-	CvMemStorage* storage = NULL;
+	CvMemStorage* storageFrontal = NULL;
+	CvMemStorage* storageProfile = NULL;
 	// load the trained files for adaboost classifier
-	if(NULL == frontalFaceCascade)
+	if(NULL == frontalFaceCascade || NULL == profileFaceCascade)
 	{
-		frontalFaceCascade = (CvHaarClassifierCascade*)cvLoad( ".\\Data\\haarcascades\\haarcascade_frontalface_alt2.xml", 0, 0, 0 );
-		if( !frontalFaceCascade )
+		string filePath = _T(".\\Data\\Cascades\\haarcascade_frontalface_alt");
+		stringstream typeTrans; // just works in MFC static library + /MTd 
+		typeTrans<<altNum;
+		filePath.append(typeTrans.str());
+		filePath.append(_T(".xml"));
+		frontalFaceCascade = (CvHaarClassifierCascade*)cvLoad( filePath.c_str(), 0, 0, 0 );
+		profileFaceCascade = (CvHaarClassifierCascade*)cvLoad( _T(".\\Data\\Cascades\\lbpcascade_frontalface.xml"),0,0,0 );
+		if( !frontalFaceCascade || !profileFaceCascade )
 		{
-			MessageBox(NULL,_T("Missed Cascade File for Frantal Face!"),_T("Error Message"),MB_YESNO|MB_ICONQUESTION);
+			MessageBox(NULL,_T("Missed Cascade File for Faces!"),_T("Error Message"),MB_YESNO|MB_ICONQUESTION);
 			return ;
 		}
+
 	}
 	
 	// transform the original image to a smaller image
@@ -148,35 +160,69 @@ void CObjectDetection::DetectFace(IplImage* pImg, vector<CvRect>* faceRegion)
     cvResize( grayImg, smallImg, CV_INTER_LINEAR ); // the size of small image 
 	cvResize( pImg, colorImg, CV_INTER_LINEAR );
     cvEqualizeHist( smallImg, smallImg );
-	storage = cvCreateMemStorage(0);
-	cvClearMemStorage( storage );
+	storageFrontal = cvCreateMemStorage(0);
+	cvClearMemStorage( storageFrontal );
+	storageProfile = cvCreateMemStorage(0);
+	cvClearMemStorage( storageProfile );
 	// detect faces
-	CvSeq* faces = cvHaarDetectObjects( smallImg, frontalFaceCascade, storage,
+	CvSeq* frontalFaces = cvHaarDetectObjects( smallImg, frontalFaceCascade, storageFrontal,
                                             pyramidCoef, 2, /*0*/CV_HAAR_DO_CANNY_PRUNING,
                                             cvSize(15, 15) );
-	// obtain the original position by inverse transform
+	CvSeq* profileFaces = cvHaarDetectObjects( smallImg, profileFaceCascade, storageProfile,
+                                            pyramidCoef, 2, /*0*/CV_HAAR_DO_CANNY_PRUNING,
+                                            cvSize(10, 10) );
+	// auxiliary methods for face detection
 	Mat imgM(colorImg);
-
 	double ratio = 0.0;
-	for( int i = 0; i < (faces ? faces->total : 0); i++ )
+	// geometry characteristics
+	vector<double> rectArea;
+	double areaAvg = 0.;
+	for( int i = 0; i < (frontalFaces ? frontalFaces->total : 0); i++ )
     {
-		CvRect* r = (CvRect*)cvGetSeqElem( faces, i );
+		CvRect* r = (CvRect*)cvGetSeqElem( frontalFaces, i );
+		ratio = r->height*r->width; // ratio used as a temp variable
+		rectArea.push_back(ratio);
+		areaAvg += ratio;
+	}
+	areaAvg /= (double)frontalFaces->total;
+	// 正脸，skin mdoel
+	for( int i = 0; i < (frontalFaces ? frontalFaces->total : 0); i++ )
+    {
+		//
+		ratio = rectArea.at(i)/areaAvg;
+		if(ratio < winSize || ratio > (1/winSize))
+			continue;
+		//
+		CvRect* r = (CvRect*)cvGetSeqElem( frontalFaces, i );
 		// re-detect by a skin color model
 		Rect roi = *r;
 		Mat faceRect(imgM,roi);
-		// debug code
-		//namedWindow("MyPicture");
-		//imshow("MyPicture",faceRect);
-		//waitKey(0);
 		ratio = SkinColorModelFilter(faceRect);
-		if(ratio < 0.5)
+		if(ratio < 0.7) //0.5
 			continue;
-		// adjust the locations of 
+		// obtain the original position by inverse transform and save it
 		r->x = cvRound( r->x*scale );
 		r->y = cvRound( r->y*scale );
 		r->width = cvRound( r->width*scale );
 		r->height = cvRound( r->height*scale );
-		// save the face region to a vector
+		//if(faceRegion != NULL)
+			//faceRegion->push_back(*r);
+    }
+	// 侧脸, skin model
+	for( int i = 0; i < (profileFaces ? profileFaces->total : 0); i++ )
+    {
+		CvRect* r = (CvRect*)cvGetSeqElem( profileFaces, i );
+		// re-detect by a skin color model
+		Rect roi = *r;
+		Mat faceRect(imgM,roi);
+		ratio = SkinColorModelFilter(faceRect);
+		if(ratio < 0.7) //0.5
+			continue;
+		// obtain the original position by inverse transform and save it
+		r->x = cvRound( r->x*scale );
+		r->y = cvRound( r->y*scale );
+		r->width = cvRound( r->width*scale );
+		r->height = cvRound( r->height*scale );
 		if(faceRegion != NULL)
 			faceRegion->push_back(*r);
     }
@@ -184,7 +230,8 @@ void CObjectDetection::DetectFace(IplImage* pImg, vector<CvRect>* faceRegion)
 	cvReleaseImage( &grayImg );
     cvReleaseImage( &smallImg );
 	cvReleaseImage( &colorImg );
-	cvReleaseMemStorage( &storage );
+	cvReleaseMemStorage( &storageFrontal );
+	cvReleaseMemStorage( &storageProfile );
 }
 
 
@@ -212,12 +259,11 @@ double CObjectDetection::SkinColorModelFilter(Mat& faceRect)
 	minMaxLoc(p,&minValue,&maxValue);
 	p /= maxValue; 
 	p *= 255.0;
-	double threshold = 0.6;
 	int count = 0;
 	for(int i = 0;i<p.rows;i++)
 		for(int j =0;j<p.cols;j++)
 		{
-			if(p.at<double>(i,j) > threshold)
+			if(p.at<double>(i,j) > skinModelTH)
 				count++;
 		}
 	double ratio = (double)count/(double)(p.rows*p.cols);
@@ -303,7 +349,6 @@ void CObjectDetection::PredictFR(IplImage* pImg, vector<CvRect>* faceRegion, vec
 	Mat grayMat(imgMat.rows,imgMat.cols,CV_8UC1);
 	cvtColor(imgMat,grayMat,CV_RGB2GRAY);
 	Mat smallMat(Size(srcCols,srcRows),CV_8UC1);
-	equalizeHist(grayMat,grayMat);
 
 	int predLabel = 0;
 	double coef = 0.;
@@ -311,9 +356,10 @@ void CObjectDetection::PredictFR(IplImage* pImg, vector<CvRect>* faceRegion, vec
 	{
 		Rect roi(faces.at(i));
 		Mat rdata(grayMat,roi);
+		equalizeHist(rdata,rdata);
 		resize(rdata,smallMat,Size(srcCols,srcRows));
 		model->predict(smallMat,predLabel,coef);
-		if(coef > 0.05)
+		if(coef > 0.5)
 		{
 			faceRegion->push_back(faces.at(i));
 			id->push_back(predLabel);

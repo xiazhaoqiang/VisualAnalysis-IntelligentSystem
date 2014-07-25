@@ -94,7 +94,7 @@ void CRClassifier::train(InputArrayOfArrays src, InputArray labels)
 
 void CRClassifier::predict(InputArray src, int &minClass, double &minDist) const {
     // calculate the coefficients
-    double gamma = 0.01;
+    double gamma = 0.001;
 	Mat D = _dicMat.t();
 	Mat tmp =_dicMat*D + Mat::eye(D.cols,D.cols,D.type())*gamma;
 	Mat proj = tmp.inv()*_dicMat;
@@ -116,6 +116,7 @@ void CRClassifier::predict(InputArray src, int &minClass, double &minDist) const
 		nu = norm(y - D.col(i)*coef.at<double>(i,0));
 		de = sqrt(pow(coef.at<double>(i,0),2));
 		res.at<double>(0,i) = nu/de;
+		double dd = res.at<double>(0,i);
 		if(res.at<double>(0,i) < minDist){
 			minDist = res.at<double>(0,i);
 			idx = i;

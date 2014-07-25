@@ -334,14 +334,14 @@ void CVisualAnalysisDlg::TrainFR(string methodType)
 	// load the images
 	string prefix;
 	if( methodType == _T("CRClassifier")){
-		prefix = _T(".\\Data\\\\TrainingsetFR_CRC\\");
+		prefix = _T(".\\Data\\TrainingsetFR_CRC\\");
 		file.Open(_T(".\\Data\\TrainingsetFR_CRC\\imagesTrain.txt"),CFile::modeRead);
 		faceWidth = 10;
 		faceHeight = 12;
 	}
 	else
 	{
-		prefix = _T(".\\Data\\\\TrainingsetFR_CV\\");
+		prefix = _T(".\\Data\\TrainingsetFR_CV\\");
 		file.Open(_T(".\\Data\\TrainingsetFR_CV\\imagesTrain.txt"),CFile::modeRead);
 		faceWidth = 30;
 		faceHeight = 36;
@@ -350,10 +350,12 @@ void CVisualAnalysisDlg::TrainFR(string methodType)
 	while(file.ReadString(str)!= FALSE)
 	{
 		m_filePath = str;
-		srcImg = imread(prefix+str.GetBuffer(0),CV_LOAD_IMAGE_GRAYSCALE);
+		srcImg = imread(prefix+(LPCTSTR)str,CV_LOAD_IMAGE_GRAYSCALE); //str.GetBuffer(0)
 		equalizeHist(srcImg,srcImg);
 		resize(srcImg,scaledImg,Size(faceWidth,faceHeight));
 		images.push_back(scaledImg);
+		srcImg.release();
+		scaledImg.release();
 		UpdateData(FALSE);
 	}
 	file.Close();
@@ -487,6 +489,9 @@ void CVisualAnalysisDlg::OnBnClickedBtnConfigure()
 		m_imgDir = m_pc.m_imgDir;
 		m_od.scaling = atof((LPTSTR)(LPCTSTR)m_pc.m_paramScale);
 		m_od.pyramidCoef = atof((LPTSTR)(LPCTSTR)m_pc.m_paramFactor);
+		m_od.skinModelTH = atof((LPTSTR)(LPCTSTR)m_pc.m_skinModelTH);
+		m_od.winSize = atof((LPTSTR)(LPCTSTR)m_pc.m_winSize);
+		m_od.altNum = m_pc.m_altNum;
 	}
 }
 

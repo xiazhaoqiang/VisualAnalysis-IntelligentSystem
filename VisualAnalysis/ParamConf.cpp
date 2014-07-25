@@ -13,11 +13,14 @@ IMPLEMENT_DYNAMIC(CParamConf, CDialogEx)
 
 CParamConf::CParamConf(CWnd* pParent /*=NULL*/)
 	: CDialogEx(CParamConf::IDD, pParent)
-	, m_imgDir(_T("E:\\Projects\\Dataset\\PKU-SVD-B_V2.0\\1_1_05(06)_0\\prob\\dongnanmeneast_15_1920x1080_30_R1"))
+	, m_imgDir(_T("E:\\Projects\\Dataset\\PKU-SVD-B_Eval\\1_2_06_1\\prob\\dongnanmeneast_15_1920x1080_30_R1"))
 	, m_paramScale(_T("4"))
 	, m_paramFactor(_T("1.1"))
 {
 
+	m_skinModelTH = _T("0.8");
+	m_winSize = _T("0.8");
+	m_altNum = 2;
 }
 
 CParamConf::~CParamConf()
@@ -30,6 +33,9 @@ void CParamConf::DoDataExchange(CDataExchange* pDX)
 	DDX_Text(pDX, IDC_EDIT_IMGDIR, m_imgDir);
 	DDX_Text(pDX, IDC_EDIT_SCALE, m_paramScale);
 	DDX_Text(pDX, IDC_EDIT_FACTOR, m_paramFactor);
+	DDX_Text(pDX, IDC_EDIT_SMTH, m_skinModelTH);
+	DDX_Text(pDX, IDC_EDIT_WINSIZE, m_winSize);
+	DDX_Text(pDX, IDC_EDIT_ALTNUM, m_altNum);
 }
 
 
@@ -45,6 +51,7 @@ END_MESSAGE_MAP()
 void CParamConf::OnBnClickedBtnOpendir()
 {
 	// TODO: Add your control notification handler code here
+	// replace the shell functions with IFileDialog in Windows vista or later
 	TCHAR pszPath[MAX_PATH];  
     BROWSEINFO bi;   
     bi.hwndOwner      = this->GetSafeHwnd();  

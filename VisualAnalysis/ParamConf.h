@@ -24,4 +24,7 @@ public:
 	CString m_paramFactor;
 	afx_msg void OnBnClickedBtnOpendir();
 	afx_msg void OnBnClickedOk();
+	CString m_skinModelTH;
+	CString m_winSize;
+	int m_altNum;
 };

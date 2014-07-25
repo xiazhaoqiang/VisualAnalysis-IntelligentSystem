@@ -30,6 +30,7 @@ class CObjectDetection
 {
 private:
 	CvHaarClassifierCascade* frontalFaceCascade;
+	CvHaarClassifierCascade* profileFaceCascade;
 	CvHaarClassifierCascade* bodyCascade;
 
 public:
@@ -40,12 +41,15 @@ public:
 	void TrainModelFR(vector<Mat>& imgMats, vector<int>& labelMats, string recMethod = "FisherFace");
 	void PredictFR(IplImage* pImg, vector<CvRect>* faceRegion, vector<int>* id, string recMethod = "FisherFace");
 	void NormalizeDataset(vector<string> imgDirs, vector<string> labelFiles, char* taskName = NULL);
+	double SkinColorModelFilter(Mat& faceRect);
 	// data
 	double scaling;	// 图像缩放系数
 	double pyramidCoef;	// 金字塔图像间缩放比例
-	double SkinColorModelFilter(Mat& faceRect);
+	double skinModelTH; // 颜色模型分割阈值
+	double winSize;
 	HOGDescriptor hog;
 	int hogType; /*hogType:0-None;1-human*/
 	int srcRows;
 	int srcCols;
+	int altNum;
 };
